@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=640, user-scalable=no"/>
+
+    <style>
+        body {
+        margin : 0;
+        padding : 0;
+        text-align: center;
+        background: black;
+        height: 100%;
+        position: relative;
+        }
+
+        html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        }
+
+        iframe {
+        border : 0px;
+        frameborder : 0px;
+        }
+
+        #player {
+        border:0px;
+        margin:0px auto;
+        padding:0;
+        display: block;
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        top: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+<div id="player"></div>
+
+<script>
+          // 2. This code loads the IFrame Player API code asynchronously.
+          var tag = document.createElement('script');
+
+          tag.src = "https://www.youtube.com/iframe_api";
+          var firstScriptTag = document.getElementsByTagName('script')[0];
+          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+          // 3. This function creates an <iframe> (and YouTube player)
+          //    after the API code downloads.
+          var player;
+          function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+              width: '640',
+              height: '360',
+
+              playerVars : {
+                'enablejsapi' : 1,
+                'showinfo' : 0,
+                'autoplay' : 0,
+                'controls' : 0,
+                'rel' : 0,
+                'iv_load_policy' : 3
+              },
+              events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError,
+                'onPlaybackQualityChange': onPlayerQualityChange,
+              }
+            });
+          }
+
+          var refreshCurrentTimeIntervalId;
+          var videoQuality = "small"
+          var playingVideoId = null;
+          var shouldResizeTrick;
+          var resizeTrickTimeout;
+
+          function onPlayerError(event) {
+              console.log("onPlayerError = " + event.data);
+              javascriptInterface.onPlayerError(event.data);
+          }
+
+          function onPlayerReady(event) {
+            console.log("onPlayerReady");
+            event.target.setPlaybackQuality(videoQuality);
+            javascriptInterface.onPlayerReady();
+          }
+
+          function onPlayerStateChange(event) {
+            console.log("onPlayerStateChange : " + event.data);
+            javascriptInterface.onPlayerStateChanged(event.data);
+
+            clearInterval(refreshCurrentTimeIntervalId);
+            if (event.data === 1) {
+                refreshCurrentTimeIntervalId = setInterval(refreshCurrentTime, 500);
+
+                if (shouldResizeTrick) {
+                    shouldResizeTrick = false;
+                    resizeTrick();
+                }
+            }
+          }
+
+          function stopVideo() {
+            console.log("stopVideo");
+            player.stopVideo();
+          }
+
+          function pauseVideo() {
+            console.log("pauseVideo");
+            player.pauseVideo();
+          }
+
+          function playVideo() {
+            console.log("playVideo");
+            player.playVideo();
+          }
+
+          // For legacy purpose only.
+          // Deprecated since 1.4.0
+          // Please use loadVideoAtTime instead.
+          function loadVideo(videoId) {
+            playingVideoId = videoId;
+            shouldResizeTrick = javascriptInterface.isPreKitKat();
+            player.loadVideoById(videoId, 0, videoQuality);
+          }
+
+          function loadVideoAtTime(videoId, time) {
+            playingVideoId = videoId;
+            shouldResizeTrick = javascriptInterface.isPreKitKat();
+            player.loadVideoById(videoId, time, videoQuality);
+          }
+
+          // Quality
+          function onPlayerQualityChange(event) {
+            console.log("OnPlayerQualityChange - quality " + event.data)
+            videoQuality = event.data
+          }
+
+          function setQuality(width, isHighQuality) {
+            console.log("setQuality with width = " + width + " ishq = " + ishq)
+            if(isHighQuality) {
+              if(width > 1280) videoQuality = "hd1080"
+              else if (width > 853) videoQuality = "hd720"
+              else if (width > 640) videoQuality = "large"
+              else videoQuality = "medium"
+            } else {
+              videoQuality="small"
+            }
+
+            console.log("New quality: " + videoQuality)
+
+            player.loadVideoById(
+              playingVideoId,
+              player.getCurrentTime(),
+              videoQuality)
+          }
+
+          function seekTo(time) {
+            player.seekTo(time, true);
+          }
+
+          function refreshCurrentTime() {
+            javascriptInterface.onCurrentTimeChanged(Math.round(player.getCurrentTime()), Math.round(player.getDuration()));
+          }
+
+          var releasePlayer = function() {
+             player.stopVideo();
+             player.destroy();
+          }
+
+          var resizeTrick = function() {
+             clearTimeout(resizeTrickTimeout);
+             resizeTrickTimeout = setTimeout(function() {
+                 updatePlayerSizeTrick();
+                  resizeTrickTimeout = setTimeout(function() {
+                      updatePlayerSize();
+                      resizeTrickTimeout = setTimeout(function() {
+                         updatePlayerSizeTrick();
+                         resizeTrickTimeout = setTimeout(function() {
+                            updatePlayerSize();
+                         }, 2500);
+                      }, 2500);
+                  }, 2500);
+             }, 2500);
+          }
+
+          var updatePlayerSize = function() {
+             console.log('Window size: innerWidth=' + window.innerWidth + ', innerHeight=' + window.innerHeight);
+             console.log('WebView size: getWidth=' + javascriptInterface.getWidth() + ', getHeight=' + javascriptInterface.getHeight());
+             player.setSize(javascriptInterface.getWidth(), javascriptInterface.getHeight());
+          }
+
+          var updatePlayerSizeTrick = function() {
+             player.setSize(javascriptInterface.getWidth() - 2, javascriptInterface.getHeight() - 2);
+          }
+
+</script>
+
+</body>
+</html>
